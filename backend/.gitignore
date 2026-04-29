@@ -1,9 +1,16 @@
+# Virtual environments
 venv/
-.env/
-
-env/
 .venv/
+env/
 
-.env*
-
+# Python
 __pycache__/
+*.pyc
+
+# Env files
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db

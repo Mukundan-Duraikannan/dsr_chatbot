@@ -9,12 +9,7 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 
-llm = ChatGroq(
-    api_key=os.getenv("GROQ_API_KEY"),
-    model="openai/gpt-oss-120b",
-    temperature=0
-)
-
+llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"),model="openai/gpt-oss-120b",temperature=0)
 
 def detect_intent(state):
     msg = state['message']
@@ -26,13 +21,10 @@ def detect_intent(state):
         state['intent'] = 'manager_query'
     return state
 
-# 2A. Employee Update → extract + save
-
 def save_daily_update(state):
     msg = state['message']
-    db = SessionLocal()
-
-    prompt = f"""
+    db=SessionLocal()
+    prompt=f"""
 Extract JSON only:
 {{
   "task":"",
@@ -44,7 +36,6 @@ Text: {msg}
 """
     
     result = llm.invoke(prompt).content
-
     try:
         data = json.loads(result)
     except:
@@ -54,26 +45,16 @@ Text: {msg}
             "time_spent": 0
         }
 
-    log = DailyLog(
-        employee_id=state['user_id'],
-        task=data['task'],
-        status=data['status'],
-        time_spent=data['time_spent']
-    )
-
+    log = DailyLog(employee_id=state['user_id'],task=data['task'],status=data['status'],time_spent=data['time_spent'])
     db.add(log)
     db.commit()
     db.close()
-
     state['response'] = 'Daily progress saved successfully.'
     return state
-
 
 def manager_summary(state):
     msg = state['message']
     db = SessionLocal()
-
-    # crude employee name extraction (can improve later)
     employees = db.query(Employee).all()
     target = None
 
@@ -101,15 +82,14 @@ def manager_summary(state):
     ).all()
 
     if not rows:
-        state['response'] = 'No logs found.'
+        state['response']="No logs found"
         db.close()
         return state
 
-    logs_text = "\n".join([
-        f"Date:{r.log_date}, Task:{r.task}, Status:{r.status}, Hours:{r.time_spent}"
-        for r in rows
+    logs_text = "\n".join([f"Date:{r.log_date},Task:{r.task},Status:{r.status},Hours:{r.time_spent}"
+        for r in rows 
     ])
-
+     
     prompt = f"""
 Summarize the following employee progress for manager.
 Give concise bullet points.
@@ -119,8 +99,7 @@ Employee: {target.name}
 Logs:
 {logs_text}
 """
-
-    summary = llm.invoke(prompt).content
-    state['response'] = summary
+    summary=llm.invoke(prompt).content
+    state['response']=summary
     db.close()
     return state

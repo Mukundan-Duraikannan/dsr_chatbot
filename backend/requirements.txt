@@ -11,9 +11,21 @@ psycopg2-binary
 python-jose
 python-multipart
 dotenv
+fastapi-mail
+psycopg2-binary
+
 
 #llm
 
 langchain
 langgraph
 langchain_groq
+
+#scheduling
+
+apscheduler
+
+
+#frontend
+
+gradio
