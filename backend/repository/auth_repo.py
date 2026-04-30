@@ -5,12 +5,7 @@ pwd = CryptContext(schemes=["bcrypt"])
 
 
 def register(db, data):
-    user = Employee(
-        name=data.name,
-        email=data.email,
-        password=pwd.hash(data.password),
-        role=data.role
-    )
+    user = Employee(name=data.name,email=data.email,password=pwd.hash(data.password),role=data.role)
     db.add(user)
     db.commit()
     return user

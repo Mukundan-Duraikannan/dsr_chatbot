@@ -28,5 +28,5 @@ def check_missing_logs():
     db.close()
 
 def start_scheduler():
-    scheduler.add_job(check_missing_logs,trigger='cron',hour=9,minute=0)
+    scheduler.add_job(check_missing_logs,trigger='cron',hour=15,minute=8)
     scheduler.start()

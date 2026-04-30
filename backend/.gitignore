@@ -1,16 +1,12 @@
-# Virtual environments
 venv/
 .venv/
 env/
 
-# Python
 __pycache__/
 *.pyc
 
-# Env files
 .env
 .env.*
 
-# OS
 .DS_Store
 Thumbs.db

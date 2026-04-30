@@ -7,3 +7,5 @@ class AgentState(TypedDict):
     intent: Optional[str]
     response: Optional[str]
     rows: Optional[list]
+    chat_history: List[str]
+    last_employee: Optional[str]   
