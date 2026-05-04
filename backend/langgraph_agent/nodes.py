@@ -37,7 +37,7 @@ Help employees log work and help managers understand progress easily.
 
 
 def extract_json(text):
-    match = re.search(r'\{.*\}', text, re.DOTALL)
+    match = re.search(r'\[.*\]', text, re.DOTALL)  # now expects LIST
     if not match:
         return None
     try:
@@ -48,13 +48,19 @@ def extract_json(text):
 
 VALID_STATUS = {"completed", "in progress", "blocked"}
 
-def validate_log(data):
-    return (
-        isinstance(data.get("task"), str) and
-        data.get("status") in VALID_STATUS and
-        isinstance(data.get("time_spent"), int)
-    )
+def validate_log(data_list):
+    if not isinstance(data_list, list):
+        return False
 
+    for data in data_list:
+        if not (
+            isinstance(data.get("task"), str) and
+            data.get("status") in VALID_STATUS and
+            isinstance(data.get("time_spent"), int)
+        ):
+            return False
+
+    return True
 
 def detect_intent(state):
     msg = state['message']
@@ -108,35 +114,34 @@ def save_daily_update(state):
     msg = state['message']
     db = SessionLocal()
 
-    history_text = "\n".join(state.get("chat_history", []))
-
     prompt = f"""
-You are a data extraction engine.
+You are a STRICT data extraction engine.
 
-{SYSTEM_PROMPT}
+Extract ALL tasks from the message.
 
-Extract structured data.
-
-Return ONLY valid JSON.
+Return ONLY a valid JSON array.
 
 Schema:
-{{
-  "task": string,
-  "status": "completed" | "in progress" | "blocked",
-  "time_spent": integer
-}}
+[
+  {{
+    "task": string,
+    "status": "completed" | "in progress" | "blocked",
+    "time_spent": integer
+  }}
+]
 
 Rules:
-- No explanation
-- No extra text
-- Do NOT invent info
+- Output MUST be a JSON array ([])
+- Do NOT return a single object
+- Do NOT add any text before or after JSON
+- If multiple tasks exist → return multiple objects
+- Do NOT merge tasks
+- Do NOT miss any task
+- Keep task short and clear
+- Do NOT invent information
 - If unsure:
-  status = "in progress"
-  time_spent = 0
-- Keep task short
-
-Conversation:
-{history_text}
+  - status = "in progress"
+  - time_spent = 0
 
 Message:
 {msg}
@@ -144,39 +149,45 @@ Message:
 
     result = llm.invoke(prompt).content.strip()
 
-    data = extract_json(result)
-
-    if not data or not validate_log(data):
-        data = {
+    data_list = extract_json(result)
+    if not data_list or not validate_log(data_list):
+        data_list = [{
             "task": msg,
             "status": "in progress",
             "time_spent": 0
-        }
+        }]
 
-    log = DailyLog(
-        employee_id=state['user_id'],
-        task=data['task'],
-        status=data['status'],
-        time_spent=data['time_spent']
-    )
+    responses = []
+    for data in data_list:
+        log = DailyLog(
+            employee_id=state['user_id'],
+            task=data['task'],
+            status=data['status'],
+            time_spent=data['time_spent']
+        )
+        db.add(log)
 
-    db.add(log)
+        responses.append(
+            f"• {data['task']}  \n"
+            f"  Status: {data['status']}  \n"
+            f"  Time: {data['time_spent']} hrs"
+        )
+
     db.commit()
     db.close()
 
-    state['response'] = f"""
-Nice, I've logged it:
-
-• {data['task']}  
-• Status: {data['status']}  
-• Time: {data['time_spent']} hrs  
-
-Anything else you worked on?
-"""
+    state['response'] = (
+        "Nice, I've logged it:\n\n"
+        + "\n\n".join(responses)
+        + "\n\nAnything else you worked on?"
+    )
 
     return state
 
 def manager_summary(state):
+    if state.get("role")!="manager":
+        state['response']="You are not authorized to access this information"
+        return state 
     msg = state['message']
     db = SessionLocal()
 

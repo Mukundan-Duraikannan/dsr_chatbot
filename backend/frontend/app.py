@@ -5,15 +5,34 @@ URL = "http://localhost:8000"
 
 def login(email, password):
     try:
-        r = requests.post(URL + "/auth/login",data={"username": email, "password": password})
+        r = requests.post(
+            URL + "/auth/login",
+            data={"username": email, "password": password}
+        )
+
         if r.status_code == 200:
             token = r.json()["access_token"]
-            return token, "Login successful"
+
+            h = requests.get(
+                URL + "/chatbot/history",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            history = h.json()["history"] if h.status_code == 200 else []
+            formatted_history = []
+            for msg, res in history:
+                if msg == "SYSTEM":
+                    formatted_history.append({"role": "assistant","content": res})
+                else:
+                    formatted_history.append({"role": "user","content": msg})
+                    formatted_history.append({"role": "assistant","content": res})
+            return token, "Login successful", formatted_history, formatted_history
+
         else:
-            return "", "Invalid credentials"
+            return "", "Invalid credentials", [], []
 
     except Exception as e:
-        return "", f"Error: {str(e)}"
+        return "", f"Error: {str(e)}", [], []
+
 
 def chat_ui(message, token, history):
     if not token:
@@ -30,19 +49,22 @@ def chat_ui(message, token, history):
             bot_reply = r.json()["response"]
         else:
             bot_reply = "Unauthorized or server error"
+
     except Exception as e:
         bot_reply = f"Error: {str(e)}"
 
+    history = history or []
     history.append({"role": "user", "content": message})
     history.append({"role": "assistant", "content": bot_reply})
 
     return history, history
 
+
 with gr.Blocks() as app:
     token = gr.State("")
     chat_history = gr.State([])
 
-    gr.Markdown("## 🤖 Employee Productivity Chatbot")
+    gr.Markdown("## Employee Productivity Chatbot")
 
     with gr.Row():
         email = gr.Textbox(label="Email")
@@ -50,13 +72,13 @@ with gr.Blocks() as app:
 
     status = gr.Textbox(label="Status", interactive=False)
 
+    chatbot = gr.Chatbot(label="Chat")
+
     gr.Button("Login").click(
         login,
         [email, password],
-        [token, status]
+        [token, status, chatbot, chat_history]
     )
-
-    chatbot = gr.Chatbot(label="Chat")
 
     with gr.Row():
         msg = gr.Textbox(

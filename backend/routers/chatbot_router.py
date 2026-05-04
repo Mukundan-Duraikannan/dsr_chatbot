@@ -38,21 +38,56 @@ def save_chat(db, user_id, message, response):
     db.add(chat)
     db.commit()
 
+def load_ui_history(db, user_id, limit=20):
+    rows = db.query(ChatHistory)\
+        .filter(ChatHistory.user_id == user_id)\
+        .order_by(ChatHistory.created_at.asc())\
+        .limit(limit).all()
+
+    history = []
+    for row in rows:
+        history.append((row.message, row.response))  
+
+    return history
+
+@router.get('/history')
+def get_history(user=Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        history = load_ui_history(db, user['id'])
+        print("HISTORY FROM DB:", history) #here
+        return {"history": history}
+    finally:
+        db.close()
+
+
 @router.post('/chat')
 def chat(data: ChatRequest, user=Depends(get_current_user)):
     user_id = user['id']
     db = SessionLocal()
-
     try:
         history = load_history(db, user_id)
+        msg_lower = data.message.lower()
+        manager_keywords = [
+            "summary", "report", "progress of",
+            "logs of", "status of", "show employees",
+            "team report"
+        ]
+
+        if user['role'] != 'manager':
+            if any(keyword in msg_lower for keyword in manager_keywords):
+                return {
+                    "response": "You are not authorized to view other employees' data."
+                }
         last_employee = None
         for h in reversed(history):
             if "Employee:" in h:
                 last_employee = h.split("Employee:")[-1].strip()
                 break
+
         result = chat_graph.invoke({
             'message': data.message,
-            'role': user['role'],
+            'role': user['role'],  
             'user_id': user_id,
             'chat_history': history,
             'last_employee': last_employee
@@ -61,12 +96,7 @@ def chat(data: ChatRequest, user=Depends(get_current_user)):
         response = result.get('response', "Something went wrong.")
         today = date.today()
 
-        reminder = db.query(Reminder).filter(
-            Reminder.employee_id == user_id,
-            Reminder.reminder_date == today,
-            Reminder.status == "pending"
-        ).first()
-
+        reminder = db.query(Reminder).filter(Reminder.employee_id == user_id,Reminder.reminder_date == today,Reminder.status == "pending").first()
         if reminder:
             response = f"""
 Hey 
@@ -80,7 +110,6 @@ No worries — want to quickly add it now?
             reminder.status = "sent"
             db.commit()
         save_chat(db, user_id, data.message, response)
-
         return {'response': response}
 
     finally:

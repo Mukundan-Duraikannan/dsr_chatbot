@@ -13,6 +13,7 @@ state.set_entry_point('detect')
 state.add_conditional_edges('detect',lambda state:state['intent'],{'greeting':'smalltalk','thanks':'smalltalk','follow_up':'manager_summary','daily_update':'save_update','manager_query':'manager_summary','other':'smalltalk'})
 
 state.add_edge('save_update', END)
+
 state.add_edge('manager_summary', END)
 state.add_edge('smalltalk', END)  
 
