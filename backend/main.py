@@ -11,6 +11,7 @@ from scheduler.reminder_scheduler import start_scheduler
 import models.employee_model
 import models.dailylogs_model
 import models.reminder_model
+import models.chat_history_model
 app=FastAPI()
 Base.metadata.create_all(bind=engine)
 app.include_router(auth_router)
