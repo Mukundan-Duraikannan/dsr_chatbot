@@ -11,11 +11,7 @@ from db.database import SessionLocal
 
 load_dotenv()
 
-llm = ChatGroq(
-    api_key=os.getenv("GROQ_API_KEY"),
-    model="openai/gpt-oss-120b",
-    temperature=0
-)
+llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"),model="openai/gpt-oss-120b",temperature=0)
 
 SYSTEM_PROMPT = """
 You are a friendly workplace assistant.
@@ -51,13 +47,8 @@ VALID_STATUS = {"completed", "in progress", "blocked"}
 def validate_log(data_list):
     if not isinstance(data_list, list):
         return False
-
     for data in data_list:
-        if not (
-            isinstance(data.get("task"), str) and
-            data.get("status") in VALID_STATUS and
-            isinstance(data.get("time_spent"), int)
-        ):
+        if not (isinstance(data.get("task"), str) and data.get("status") in VALID_STATUS and isinstance(data.get("time_spent"), int)):
             return False
 
     return True
@@ -159,28 +150,16 @@ Message:
 
     responses = []
     for data in data_list:
-        log = DailyLog(
-            employee_id=state['user_id'],
-            task=data['task'],
-            status=data['status'],
-            time_spent=data['time_spent']
-        )
+        log = DailyLog(employee_id=state['user_id'],task=data['task'],status=data['status'],time_spent=data['time_spent'])
         db.add(log)
 
-        responses.append(
-            f"• {data['task']}  \n"
+        responses.append(f"• {data['task']}  \n"
             f"  Status: {data['status']}  \n"
-            f"  Time: {data['time_spent']} hrs"
-        )
-
+            f"  Time: {data['time_spent']} hrs")
     db.commit()
     db.close()
 
-    state['response'] = (
-        "Nice, I've logged it:\n\n"
-        + "\n\n".join(responses)
-        + "\n\nAnything else you worked on?"
-    )
+    state['response'] = ("Nice, I've logged it:\n\n"+ "\n\n".join(responses)+ "\n\nAnything else you worked on?")
 
     return state
 
@@ -202,9 +181,7 @@ def manager_summary(state):
             break
 
     if not target and state.get("last_employee"):
-        target = db.query(Employee).filter(
-            Employee.name == state["last_employee"]
-        ).first()
+        target = db.query(Employee).filter(Employee.name == state["last_employee"]).first()
 
     if not target:
         state['response'] = "Which employee are you asking about?"

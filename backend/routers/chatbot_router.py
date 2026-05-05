@@ -30,11 +30,7 @@ def load_history(db, user_id, limit=10):
 
 
 def save_chat(db, user_id, message, response):
-    chat = ChatHistory(
-        user_id=user_id,
-        message=message,
-        response=response
-    )
+    chat = ChatHistory(user_id=user_id,message=message,response=response)
     db.add(chat)
     db.commit()
 
@@ -55,7 +51,7 @@ def get_history(user=Depends(get_current_user)):
     db = SessionLocal()
     try:
         history = load_ui_history(db, user['id'])
-        print("HISTORY FROM DB:", history) #here
+        print("HISTORY FROM DB:", history) 
         return {"history": history}
     finally:
         db.close()

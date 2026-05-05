@@ -1,55 +1,87 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta
-import calendar
+from datetime import datetime, timedelta, date
 from db.database import SessionLocal
 from models.employee_model import Employee
 from models.dailylogs_model import DailyLog
-from models.reminder_model import Reminder 
+from models.reminder_model import Reminder
+from utils.email_service import send_email
 
 scheduler = BackgroundScheduler()
 
+def get_previous_working_day(today):
+    if today.weekday() == 0:  
+        return today - timedelta(days=3)  
+    elif today.weekday() == 6:  
+        return today - timedelta(days=2)
+    elif today.weekday() == 5:  
+        return today - timedelta(days=1)
+    else:
+        return today - timedelta(days=1)
+
+
 def check_missing_logs():
     db = SessionLocal()
-    today = datetime.now().date()
-    check_date = today - timedelta(days=1)
-    if calendar.day_name[check_date.weekday()] in ["Saturday", "Sunday"]:
+    try:
+        today = date.today()
+        check_date = get_previous_working_day(today)
+        if check_date.weekday() >= 5:
+            return
+
+        employees = db.query(Employee).all()
+        manager = db.query(Employee).filter(Employee.role == "manager").all()
+
+        for emp in employees:
+
+            log = db.query(DailyLog).filter(
+                DailyLog.employee_id == emp.id,
+                DailyLog.log_date == check_date
+            ).first()
+
+            if not log:
+
+                existing = db.query(Reminder).filter(
+                    Reminder.employee_id == emp.id,
+                    Reminder.reminder_date == today
+                ).first()
+
+                if not existing:
+                    db.add(Reminder(
+                        employee_id=emp.id,
+                        reminder_date=today,
+                        status="sent"
+                    ))
+                    send_email(
+                        emp.email,
+                        "Missing Daily Log Reminder",
+                        f"""
+Hi {emp.name},
+
+You missed submitting your daily progress for {check_date}.
+
+Please update it as soon as possible.
+
+Thanks,
+DSR Bot
+"""
+                    )
+                    if manager:
+                        send_email(
+                            manager.email,
+                            f"{emp.name} missed daily log",
+                            f"""
+Hi,
+
+{emp.name} did not submit their daily progress for {check_date}.
+
+Please follow up if needed.
+
+- DSR Bot
+"""
+                        )
+
+        db.commit()
+    finally:
         db.close()
-        return
-
-    employees = db.query(Employee).all()
-    managers = db.query(Employee).filter(Employee.role == "manager").all()
-
-    for emp in employees:
-
-        log = db.query(DailyLog).filter(DailyLog.employee_id == emp.id,DailyLog.log_date == check_date).first()
-        if not log:
-            existing = db.query(Reminder).filter(Reminder.employee_id == emp.id,Reminder.reminder_date == today).first()
-
-            if not existing:
-                reminder = Reminder(employee_id=emp.id,reminder_date=today,status="pending")
-                db.add(reminder)
-                from models.chat_history_model import ChatHistory
-
-                emp_msg = f"""
-Hey,
-
-You missed logging your work for {check_date}.
-
-Can you quickly update it?
-"""
-
-                db.add(ChatHistory(user_id=emp.id,message="SYSTEM",response=emp_msg))
-                for mgr in managers:
-                    mgr_msg = f"""
-Alert
-{emp.name} did not submit progress for {check_date}.
-"""
-                    db.add(ChatHistory(user_id=mgr.id,message="SYSTEM",response=mgr_msg))
-            print(f"Reminder created for {emp.name}")
-
-    db.commit()
-    db.close()
-
 def start_scheduler():
-    scheduler.add_job(check_missing_logs,trigger='cron',hour=15,minute=30)
+    scheduler.add_job(check_missing_logs,trigger='cron',hour=9,minute=30)
     scheduler.start()

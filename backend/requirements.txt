@@ -29,3 +29,11 @@ apscheduler
 #frontend
 
 gradio
+
+
+botbuilder-core
+botbuilder-schema 
+aiohttp
+
+#for ngrok
+pyngrok
