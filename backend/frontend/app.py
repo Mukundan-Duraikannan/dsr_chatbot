@@ -5,10 +5,7 @@ URL = "http://localhost:3978"
 
 def login(email, password):
     try:
-        r = requests.post(
-            URL + "/auth/login",
-            data={"username": email, "password": password}
-        )
+        r = requests.post(URL + "/auth/login",data={"username": email, "password": password})
 
         if r.status_code == 200:
             token = r.json()["access_token"]

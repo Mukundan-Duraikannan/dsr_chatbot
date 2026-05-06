@@ -9,3 +9,4 @@ class AgentState(TypedDict):
     rows: Optional[list]
     chat_history: List[str]
     last_employee: Optional[str]   
+    
