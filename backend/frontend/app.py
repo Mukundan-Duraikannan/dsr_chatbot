@@ -1,7 +1,7 @@
 import gradio as gr
 import requests
 
-URL = "http://localhost:8000"
+URL = "http://localhost:3978"
 
 def login(email, password):
     try:

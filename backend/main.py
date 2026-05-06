@@ -12,6 +12,7 @@ import models.employee_model
 import models.dailylogs_model
 import models.reminder_model
 import models.chat_history_model
+import models.project_model
 app=FastAPI()
 
 

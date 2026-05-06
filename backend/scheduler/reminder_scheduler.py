@@ -27,7 +27,7 @@ def check_missing_logs():
         if check_date.weekday() >= 5:
             return
 
-        employees = db.query(Employee).all()
+        employees = db.query(Employee).filter(Employee.role == "employee").all()
         manager = db.query(Employee).filter(Employee.role == "manager").all()
 
         for emp in employees:
@@ -64,12 +64,13 @@ Thanks,
 DSR Bot
 """
                     )
-                    if manager:
+                   
+                    for mgr in manager:
                         send_email(
-                            manager.email,
+                            mgr.email,
                             f"{emp.name} missed daily log",
                             f"""
-Hi,
+Hi {mgr.name},
 
 {emp.name} did not submit their daily progress for {check_date}.
 
@@ -77,11 +78,12 @@ Please follow up if needed.
 
 - DSR Bot
 """
-                        )
-
+    )
+                        
         db.commit()
     finally:
         db.close()
+
 def start_scheduler():
-    scheduler.add_job(check_missing_logs,trigger='cron',hour=9,minute=30)
+    scheduler.add_job(check_missing_logs,trigger='cron',hour=18,minute=11)
     scheduler.start()
